@@ -13,25 +13,25 @@ class ApiError extends Error {
         Error.captureStackTrace(this, this.constructor);
     }
     static badRequest(message, errors = []) {
-        return new Error(400, message, errors);
+        return new ApiError(400, message, errors);
     }
     static unauthorized(message = "Unauthorized") {
-        return new Error(401, message);
+        return new ApiError(401, message);
     }
     static forbidden(message = "Forbidden") {
-        return new Error(403, message);
+        return new ApiError(403, message);
     }
     static notFound(message = "Not Found") {
-        return new Error(404, message);
+        return new ApiError(404, message);
     }
     static conflict(message = "Conflict") {
-        return new Error(409, message);
+        return new ApiError(409, message);
     }
     static internalServerError(message = "Internal Server Error", errors = []) {
-        return new Error(500, message, errors);
+        return new ApiError(500, message, errors);
     }
     static customError(statusCode, message = "Custom Error", errors = []) {
-        return new Error(statusCode, message, errors);
+        return new ApiError(statusCode, message, errors);
     }
 }
 

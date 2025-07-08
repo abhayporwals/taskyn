@@ -3,6 +3,10 @@ import { hashPassword, comparePassword } from "../utils/hash"
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt"
 
 const userSchema = new mongoose.Schema({
+    fullName:{
+        type: String,
+        required: [true, "Username is required"],
+    },
     userName: {
         type: String,
         required: [true, "Username is required"],
