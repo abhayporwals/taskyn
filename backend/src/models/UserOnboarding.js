@@ -1,6 +1,11 @@
 import mongoose from "mongoose"
 
 const userOnboardingSchema = new mongoose.Schema({
+    userId:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"User",
+        required:true
+    },
     interests:{
         type: [String],
         default: [],
