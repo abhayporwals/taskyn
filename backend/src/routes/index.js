@@ -4,6 +4,7 @@ import authRoutes from "./auth.routes.js";
 import assignmentRoutes from "./assignment.routes.js";
 import trackRoutes from "./track.routes.js";
 import exploreRoutes from "./explore.routes.js";
+import onboardingRoutes from "./onboarding.routes.js"
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.use("/api/v1/auth", authRoutes);
 router.use("/api/v1/assignments", assignmentRoutes);
 router.use("/api/v1/tracks", trackRoutes);
 router.use("/api/v1/explore", exploreRoutes);
+router.use("api/v1/onboarding",onboardingRoutes);
 
 // 404 handler for undefined routes
 router.use("*", (req, res) => {
