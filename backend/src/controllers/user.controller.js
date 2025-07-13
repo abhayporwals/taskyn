@@ -1,52 +1,38 @@
 import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
-import { User } from "../models/User.js";
-import { comparePassword } from "../utils/hash.js";
-import { generateAccessAndRefreshTokens } from "../services/auth.service.js";
+import { 
+  registerUserService,
+  loginUserService,
+  logoutUserService,
+  updateAccountDetailsService,
+  updateUserAvatarService,
+  changePasswordService,
+  deleteAccountService,
+  getCurrentUserService,
+  sendEmailVerification, 
+  verifyEmailOTP, 
+  sendPasswordReset, 
+  resetPasswordWithOTP,
+  resendEmailVerification,
+  resendPasswordReset
+} from "../services/user.service.js";
+
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePassword = (password) => {
+  return password && password.length >= 6;
+};
 
 const registerUser = async (req, res) => {
   try {
-    const { fullName, userName, email, password } = req.body;
+    const userData = req.body;
+    const avatarFile = req.files?.avatarUrl?.[0];
 
-    if ([fullName, userName, email, password].some(field => !field?.trim())) {
-      throw ApiError.badRequest("All fields are required");
-    }
-
-    const existedUser = await User.findOne({
-      $or: [{ userName: userName.toLowerCase() }, { email }],
-    });
-
-    if (existedUser) {
-      throw ApiError.conflict("User with email or username already exists");
-    }
-
-    const avatarLocalPath = req.files?.avatarUrl?.[0]?.path;
-
-    if (!avatarLocalPath) {
-      throw ApiError.badRequest("Avatar file is required");
-    }
-
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
-
-    if (!avatar?.url) {
-      throw ApiError.badRequest("Failed to upload avatar");
-    }
-
-    const user = await User.create({
-      fullName,
-      userName: userName.toLowerCase(),
-      email,
-      password,
-      avatarUrl: avatar.url,
-    });
-
-    const createdUser = await User.findById(user._id).select("-password -refreshToken");
-
-    if (!createdUser) {
-      throw ApiError.internalServerError("Failed to register user");
-    }
+    const createdUser = await registerUserService(userData, avatarFile);
 
     return res
       .status(201)
@@ -63,38 +49,23 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   try {
-    const { email, userName, password } = req.body;
+    const credentials = req.body;
 
-    if (!email && !userName) {
-      throw ApiError.badRequest("Email or username is required");
-    }
+    const result = await loginUserService(credentials);
 
-    const user = await User.findOne({
-      $or: [{ email }, { userName: userName?.toLowerCase() }],
-    });
-
-    if (!user) {
-      throw ApiError.notFound("User does not exist");
-    }
-
-    const isPasswordValid = await comparePassword(password, user.password);
-
-    if (!isPasswordValid) {
-      throw ApiError.unauthorized("Invalid user credentials");
-    }
-
-    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
-
-    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
-
-    const cookieOptions = { httpOnly: true, secure: true };
+    const cookieOptions = { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    };
 
     return res
       .status(200)
-      .cookie("accessToken", accessToken, cookieOptions)
-      .cookie("refreshToken", refreshToken, cookieOptions)
+      .cookie("accessToken", result.accessToken, cookieOptions)
+      .cookie("refreshToken", result.refreshToken, cookieOptions)
       .json(ApiResponse.success(
-        { user: loggedInUser, accessToken, refreshToken },
+        { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken },
         "User logged in successfully"
       ));
   } catch (error) {
@@ -111,17 +82,13 @@ const logoutUser = async (req, res) => {
   try {
     const userId = req.user?._id;
 
-    if (!userId) {
-      throw ApiError.unauthorized("Unauthorized access");
-    }
+    await logoutUserService(userId);
 
-    await User.findByIdAndUpdate(
-      userId,
-      { $unset: { refreshToken: 1 } },
-      { new: true }
-    );
-
-    const cookieOptions = { httpOnly: true, secure: true };
+    const cookieOptions = { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict"
+    };
 
     return res
       .status(200)
@@ -139,13 +106,13 @@ const logoutUser = async (req, res) => {
 };
 
 const refreshAccessToken = async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
-
-  if (!incomingRefreshToken) {
-    throw ApiError.unauthorized("Unauthorized request");
-  }
-
   try {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+    if (!incomingRefreshToken) {
+      throw ApiError.unauthorized("Unauthorized request");
+    }
+
     const decoded = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
 
     const user = await User.findById(decoded?._id);
@@ -160,7 +127,12 @@ const refreshAccessToken = async (req, res) => {
     const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessAndRefreshTokens(user._id);
 
-    const cookieOptions = { httpOnly: true, secure: true };
+    const cookieOptions = { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    };
 
     return res
       .status(200)
@@ -182,9 +154,12 @@ const refreshAccessToken = async (req, res) => {
 
 const getCurrentUser = async (req, res) => {
   try {
+    const userId = req.user?._id;
+    const user = await getCurrentUserService(userId);
+
     return res
       .status(200)
-      .json(ApiResponse.success(req.user, "Current user fetched successfully"));
+      .json(ApiResponse.success(user, "Current user fetched successfully"));
   } catch (error) {
     const status = error.statusCode || 500;
     return res.status(status).json({
@@ -197,21 +172,10 @@ const getCurrentUser = async (req, res) => {
 
 const updateAccountDetails = async (req, res) => {
   try {
-    const { fullName, email } = req.body;
+    const userId = req.user?._id;
+    const updateData = req.body;
 
-    if (!fullName || !email) {
-      throw ApiError.badRequest("All fields are required");
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user?._id,
-      { $set: { fullName, email } },
-      { new: true }
-    ).select("-password -refreshToken");
-
-    if (!updatedUser) {
-      throw ApiError.notFound("User not found");
-    }
+    const updatedUser = await updateAccountDetailsService(userId, updateData);
 
     return res
       .status(200)
@@ -228,31 +192,228 @@ const updateAccountDetails = async (req, res) => {
 
 const updateUserAvatar = async (req, res) => {
   try {
-    const avatarLocalPath = req.file?.path;
+    const userId = req.user?._id;
+    const avatarFile = req.file;
 
-    if (!avatarLocalPath) {
-      throw ApiError.badRequest("Avatar file is missing");
-    }
-
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
-
-    if (!avatar?.url) {
-      throw ApiError.badRequest("Error while uploading avatar");
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user?._id,
-      { $set: { avatarUrl: avatar.url } },
-      { new: true }
-    ).select("-password -refreshToken");
-
-    if (!updatedUser) {
-      throw ApiError.notFound("User not found");
-    }
+    const updatedUser = await updateUserAvatarService(userId, avatarFile);
 
     return res
       .status(200)
       .json(ApiResponse.success(updatedUser, "Avatar updated successfully"));
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+      errors: error.errors || [],
+    });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const passwordData = req.body;
+
+    const result = await changePasswordService(userId, passwordData);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, "Password changed successfully"));
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+      errors: error.errors || [],
+    });
+  }
+};
+
+const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const { password } = req.body;
+
+    const result = await deleteAccountService(userId, password);
+
+    const cookieOptions = { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict"
+    };
+
+    return res
+      .status(200)
+      .clearCookie("accessToken", cookieOptions)
+      .clearCookie("refreshToken", cookieOptions)
+      .json(ApiResponse.success(result, "Account deleted successfully"));
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+      errors: error.errors || [],
+    });
+  }
+};
+
+const sendEmailVerificationOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw ApiError.badRequest("Email is required");
+    }
+
+    if (!validateEmail(email)) {
+      throw ApiError.badRequest("Invalid email format");
+    }
+
+    const result = await sendEmailVerification(email);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, "Verification email sent successfully"));
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+      errors: error.errors || [],
+    });
+  }
+};
+
+const verifyEmailOTPController = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      throw ApiError.badRequest("Email and OTP are required");
+    }
+
+    if (!validateEmail(email)) {
+      throw ApiError.badRequest("Invalid email format");
+    }
+
+    const result = await verifyEmailOTP(email, otp);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, "Email verified successfully"));
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+      errors: error.errors || [],
+    });
+  }
+};
+
+const sendPasswordResetOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw ApiError.badRequest("Email is required");
+    }
+
+    if (!validateEmail(email)) {
+      throw ApiError.badRequest("Invalid email format");
+    }
+
+    const result = await sendPasswordReset(email);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, "Password reset email sent successfully"));
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+      errors: error.errors || [],
+    });
+  }
+};
+
+const resetPasswordWithOTPController = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      throw ApiError.badRequest("Email, OTP, and new password are required");
+    }
+
+    if (!validateEmail(email)) {
+      throw ApiError.badRequest("Invalid email format");
+    }
+
+    if (!validatePassword(newPassword)) {
+      throw ApiError.badRequest("New password must be at least 6 characters long");
+    }
+
+    const result = await resetPasswordWithOTP(email, otp, newPassword);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, "Password reset successfully"));
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+      errors: error.errors || [],
+    });
+  }
+};
+
+const resendEmailVerificationOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw ApiError.badRequest("Email is required");
+    }
+
+    if (!validateEmail(email)) {
+      throw ApiError.badRequest("Invalid email format");
+    }
+
+    const result = await resendEmailVerification(email);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, "Verification email resent successfully"));
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+      errors: error.errors || [],
+    });
+  }
+};
+
+const resendPasswordResetOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw ApiError.badRequest("Email is required");
+    }
+
+    if (!validateEmail(email)) {
+      throw ApiError.badRequest("Invalid email format");
+    }
+
+    const result = await resendPasswordReset(email);
+
+    return res
+      .status(200)
+      .json(ApiResponse.success(result, "Password reset email resent successfully"));
   } catch (error) {
     const status = error.statusCode || 500;
     return res.status(status).json({
@@ -270,5 +431,13 @@ export {
   refreshAccessToken,
   getCurrentUser,
   updateAccountDetails,
-  updateUserAvatar
+  updateUserAvatar,
+  changePassword,
+  deleteAccount,
+  sendEmailVerificationOTP,
+  verifyEmailOTPController,
+  sendPasswordResetOTP,
+  resetPasswordWithOTPController,
+  resendEmailVerificationOTP,
+  resendPasswordResetOTP
 };
