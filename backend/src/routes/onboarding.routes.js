@@ -10,6 +10,6 @@ const router = Router();
 router.use(verifyJWT);
 
 router.patch("/update-onboarding", submitOrUpdateOnboarding);
-router.get("/myOnboarding", getUserOnboarding);
+router.get("/me", getUserOnboarding);
 
 export default router;
