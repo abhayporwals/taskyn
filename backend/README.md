@@ -302,7 +302,7 @@ backend/
 │   │   ├── Track.js
 │   │   ├── Task.js
 │   │   ├── Feedback.js
-│   │   ├── UserOnboarding.js
+│   │   ├── Userpreferences.js
 │   │   ├── RefreshToken.js
 │   │   └── ExploreSession.js
 │   ├── routes/

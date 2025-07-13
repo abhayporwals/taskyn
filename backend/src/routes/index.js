@@ -1,6 +1,7 @@
 import { Router } from "express";
 import userRoutes from "./user.routes.js";
 import authRoutes from "./auth.routes.js";
+import preferencesRoutes from "./preferences.routes.js";
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.get("/health", (req, res) => {
 // API routes
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
+router.use("/preferences", preferencesRoutes);
 
 // 404 handler for undefined routes
 router.use("/*", (req, res) => {

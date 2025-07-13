@@ -64,10 +64,6 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    onboardingCompleted: {
-        type: Boolean,
-        default: false,
-    },
 }, { timestamps: true })
 
 userSchema.pre("save", async function (next) {
