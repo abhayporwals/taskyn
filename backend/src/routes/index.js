@@ -1,9 +1,5 @@
 import { Router } from "express";
 import userRoutes from "./user.routes.js";
-import authRoutes from "./auth.routes.js";
-import assignmentRoutes from "./assignment.routes.js";
-import trackRoutes from "./track.routes.js";
-import exploreRoutes from "./explore.routes.js";
 
 const router = Router();
 
@@ -17,11 +13,7 @@ router.get("/health", (req, res) => {
 });
 
 // API routes
-router.use("/api/v1/users", userRoutes);
-router.use("/api/v1/auth", authRoutes);
-router.use("/api/v1/assignments", assignmentRoutes);
-router.use("/api/v1/tracks", trackRoutes);
-router.use("/api/v1/explore", exploreRoutes);
+router.use("/users", userRoutes);
 
 // 404 handler for undefined routes
 router.use("*", (req, res) => {

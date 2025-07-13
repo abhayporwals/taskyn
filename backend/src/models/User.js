@@ -1,6 +1,6 @@
 import mongoose from "mongoose"
-import { hashPassword, comparePassword } from "../utils/hash"
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt"
+import { hashPassword, comparePassword } from "../utils/hash.js"
+import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js"
 
 const userSchema = new mongoose.Schema({
     fullName:{
