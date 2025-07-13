@@ -1,9 +1,7 @@
-import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/apiResponse";
-import { UserOnboarding } from "../models/UserOnboarding";
-import jwt from "jsonwebtoken";
 import {
      submitOrUpdateOnboardingService,
+     getUserOnboardingService
 
  } from "../services/onboarding.service";
 
