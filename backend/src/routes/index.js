@@ -1,5 +1,6 @@
 import { Router } from "express";
 import userRoutes from "./user.routes.js";
+import authRoutes from "./auth.routes.js";
 
 const router = Router();
 
@@ -13,10 +14,11 @@ router.get("/health", (req, res) => {
 });
 
 // API routes
+router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 
 // 404 handler for undefined routes
-router.use("*", (req, res) => {
+router.use("/*", (req, res) => {
   res.status(404).json({
     success: false,
     message: `Route ${req.originalUrl} not found`,

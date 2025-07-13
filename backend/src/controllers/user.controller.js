@@ -17,6 +17,7 @@ import {
   resendEmailVerification,
   resendPasswordReset
 } from "../services/user.service.js";
+import { User } from "../models/User.js";
 
 const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
