@@ -1,84 +1,89 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
-const userPreferencesSchema = new mongoose.Schema({
+const userPreferencesSchema = new mongoose.Schema(
+  {
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
     },
+
     interests: {
-        type: [String],
-        default: [],
+      type: [String],
+      default: [],
     },
     primaryGoals: {
-        type: [String],
-        default: [],
+      type: [String],
+      default: [],
     },
     secondaryGoals: {
-        type: [String],
-        default: [],
+      type: [String],
+      default: [],
     },
     skillLevels: {
-        type: Map,
-        of: {
-            type: String,
-            enum: ['beginner', 'intermediate', 'advanced'],
-        },
-        default: {},
+      type: Map,
+      of: {
+        type: String,
+        enum: ["beginner", "intermediate", "advanced"],
+      },
+      default: {},
     },
+
     preferredTopics: {
-        type: [String],
-        default: [],
+      type: [String],
+      default: [],
+    },
+    preferredLanguages: {
+      type: [String],
+      default: [],
     },
     learningStyle: {
-        type: String,
-        enum: ['assignment-only', 'resources-only', 'both'],
-        default: 'both'
+      type: String,
+      enum: ["assignment-only", "resources-only", "both"],
+      default: "both",
     },
     preferredAssignmentType: {
-        type: String,
-        enum: ['project', 'problem-solving', 'reading-based', 'mixed'],
-        default: 'mixed'
+      type: String,
+      enum: ["project", "problem-solving", "reading-based", "mixed"],
+      default: "mixed",
     },
+
     yearsOfExperience: {
-        type: Number,
-        default: 0
+      type: Number,
+      default: 0,
     },
     priorProjects: {
-        type: [String],
-        default: [],
+      type: [String],
+      default: [],
     },
     githubUrl: {
-        type: String,
-        default: "",
+      type: String,
+      default: "",
     },
     portfolioUrl: {
-        type: String,
-        default: "",
+      type: String,
+      default: "",
     },
     availableHoursPerWeek: {
-        type: Number,
-        required: true,
-    },
-    preferredLanguage: {
-        type: String,
-        required: true,
+      type: Number,
+      required: true,
     },
     wantsFeedback: {
-        type: Boolean,
-        default: true,
+      type: Boolean,
+      default: true,
     },
+
     submittedAt: {
-        type: Date,
-        default: Date.now,
+      type: Date,
+      default: Date.now,
     },
     version: {
-        type: Number,
-        default: 1,
+      type: Number,
+      default: 1,
     },
-}, { timestamps: true })
+  },
+  { timestamps: true }
+);
 
-export const Userpreferences = mongoose.model("Userpreferences", userPreferencesSchema);
-
-
-
+export const UserPreferences = mongoose.model("UserPreferences", userPreferencesSchema);

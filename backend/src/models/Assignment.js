@@ -12,39 +12,64 @@ const assignmentSchema = new mongoose.Schema(
       ref: "Track",
       required: true,
     },
-    taskId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Task",
+
+    // AI-generated challenge metadata
+    title: {
+      type: String,
       required: true,
     },
-
-    assignedAt: {
-      type: Date,
-      default: Date.now,
+    description: {
+      type: String,
+      required: true,
     },
+    type: {
+      type: String,
+      enum: ["code", "reading", "project", "mcq", "mixed"],
+      default: "code",
+    },
+    difficulty: {
+      type: String,
+      enum: ["easy", "medium", "hard"],
+      default: "medium",
+    },
+    language: {
+      type: String,
+      default: "unknown", // dynamically set based on prompt or userPref
+      trim: true,
+    },
+
+    sampleSolution: {
+      type: String,
+      default: "",
+    },
+    expectedOutput: {
+      type: String,
+      default: "",
+    },
+
+    // Submission fields
     isCompleted: {
       type: Boolean,
       default: false,
     },
-    completedAt: {
+    submittedAt: {
       type: Date,
       default: null,
     },
-
+    submissionContent: {
+      type: String,
+      default: "",
+    },
     submissionType: {
       type: String,
       enum: ["text", "file", "code"],
       default: "text",
     },
-    submissionContent: {
-      type: String, 
-      default: "",
-    },
-
     reflection: {
       type: String,
       default: "",
     },
+
     aiFeedbackId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Feedback",
@@ -55,4 +80,3 @@ const assignmentSchema = new mongoose.Schema(
 );
 
 export const Assignment = mongoose.model("Assignment", assignmentSchema);
-

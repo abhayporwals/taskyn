@@ -1,5 +1,3 @@
-import mongoose from "mongoose";
-
 const exploreSessionSchema = new mongoose.Schema(
   {
     userId: {
@@ -11,18 +9,15 @@ const exploreSessionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    taskId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Task",
-      required: true,
-    },
     assignmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Assignment",
       required: true,
     },
+    responseSnapshot: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );
-
-export const ExploreSession = mongoose.model("ExploreSession", exploreSessionSchema);

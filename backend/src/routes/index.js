@@ -2,6 +2,8 @@ import { Router } from "express";
 import userRoutes from "./user.routes.js";
 import authRoutes from "./auth.routes.js";
 import preferencesRoutes from "./preferences.routes.js";
+import trackRoutes from "./track.routes.js";
+import assignmentRoutes from "./assignment.routes.js";
 
 const router = Router();
 
@@ -18,6 +20,8 @@ router.get("/health", (req, res) => {
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/preferences", preferencesRoutes);
+router.use("/tracks", trackRoutes);
+router.use("/assignments", assignmentRoutes);
 
 // 404 handler for undefined routes
 router.use("/*", (req, res) => {
