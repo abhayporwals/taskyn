@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { ApiError } from "../utils/ApiError.js";
+import { ApiError } from "../utils/apiError.js";
 
 // Create transporter
 const createTransporter = () => {
@@ -84,7 +84,7 @@ const getPasswordResetTemplate = (otp, userName) => {
 export const sendEmailVerificationOTP = async (email, otp, userName) => {
   try {
     const transporter = createTransporter();
-    
+
     const mailOptions = {
       from: `"Taskyn" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -104,7 +104,7 @@ export const sendEmailVerificationOTP = async (email, otp, userName) => {
 export const sendPasswordResetOTP = async (email, otp, userName) => {
   try {
     const transporter = createTransporter();
-    
+
     const mailOptions = {
       from: `"Taskyn" <${process.env.EMAIL_USER}>`,
       to: email,

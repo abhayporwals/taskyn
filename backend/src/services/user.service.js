@@ -1,5 +1,5 @@
 import { User } from "../models/User.js";
-import { ApiError } from "../utils/ApiError.js";
+import { ApiError } from "../utils/apiError.js";
 import { sendEmailVerificationOTP, sendPasswordResetOTP } from "./email.service.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { comparePassword } from "../utils/hash.js";
@@ -164,9 +164,9 @@ export const updateAccountDetailsService = async (userId, updateData) => {
     }
 
     // Check if email is already taken by another user
-    const existingUser = await User.findOne({ 
-      email, 
-      _id: { $ne: userId } 
+    const existingUser = await User.findOne({
+      email,
+      _id: { $ne: userId }
     });
 
     if (existingUser) {
@@ -284,7 +284,7 @@ export const deleteAccountService = async (userId, password) => {
 export const getCurrentUserService = async (userId) => {
   try {
     const user = await User.findById(userId).select("-password -refreshToken");
-    
+
     if (!user) {
       throw ApiError.notFound("User not found");
     }
@@ -299,7 +299,7 @@ export const getCurrentUserService = async (userId) => {
 export const sendEmailVerification = async (email) => {
   try {
     const user = await User.findOne({ email });
-    
+
     if (!user) {
       throw ApiError.notFound("User not found");
     }
@@ -323,7 +323,7 @@ export const sendEmailVerification = async (email) => {
 export const verifyEmailOTP = async (email, otp) => {
   try {
     const user = await User.findOne({ email });
-    
+
     if (!user) {
       throw ApiError.notFound("User not found");
     }
@@ -333,7 +333,7 @@ export const verifyEmailOTP = async (email, otp) => {
     }
 
     const isValidOTP = user.verifyEmailOTP(otp);
-    
+
     if (!isValidOTP) {
       throw ApiError.badRequest("Invalid or expired OTP");
     }
@@ -352,7 +352,7 @@ export const verifyEmailOTP = async (email, otp) => {
 export const sendPasswordReset = async (email) => {
   try {
     const user = await User.findOne({ email });
-    
+
     if (!user) {
       throw ApiError.notFound("User not found");
     }
@@ -372,13 +372,13 @@ export const sendPasswordReset = async (email) => {
 export const resetPasswordWithOTP = async (email, otp, newPassword) => {
   try {
     const user = await User.findOne({ email });
-    
+
     if (!user) {
       throw ApiError.notFound("User not found");
     }
 
     const isValidOTP = user.verifyPasswordResetOTP(otp);
-    
+
     if (!isValidOTP) {
       throw ApiError.badRequest("Invalid or expired OTP");
     }
@@ -397,7 +397,7 @@ export const resetPasswordWithOTP = async (email, otp, newPassword) => {
 export const resendEmailVerification = async (email) => {
   try {
     const user = await User.findOne({ email });
-    
+
     if (!user) {
       throw ApiError.notFound("User not found");
     }
@@ -429,7 +429,7 @@ export const resendEmailVerification = async (email) => {
 export const resendPasswordReset = async (email) => {
   try {
     const user = await User.findOne({ email });
-    
+
     if (!user) {
       throw ApiError.notFound("User not found");
     }

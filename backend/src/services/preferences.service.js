@@ -1,4 +1,4 @@
-import { ApiError } from "../utils/ApiError.js";
+import { ApiError } from "../utils/apiError.js";
 import { Userpreferences } from "../models/UserPreferences.js";
 
 export const submitOrUpdatePreferencesService = async (userId, payload) => {

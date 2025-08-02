@@ -1,5 +1,5 @@
-import { ApiResponse } from '../utils/ApiResponse.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiResponse } from '../utils/apiResponse.js';
+import { ApiError } from '../utils/apiError.js';
 import {
   generateAITrackService,
   getUserTracksService,
@@ -10,6 +10,7 @@ import {
   archiveTrackService,
   reactivateTrackService
 } from '../services/track.service.js';
+
 
 export const generateAITrack = async (req, res, next) => {
   try {

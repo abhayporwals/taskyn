@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { Assignment } from '../models/Assignment.js';
 import { Track } from '../models/Track.js';
 import { Feedback } from '../models/Feedback.js';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/apiError.js';
 import { geminiService } from './gemini.service.js';
 
 export const generateAIAssignmentService = async (userId, trackId, options = {}) => {
@@ -50,7 +50,7 @@ export const getAssignmentByIdService = async (assignmentId, userId) => {
     if (!assignment) {
       throw new ApiError(404, 'Assignment not found');
     }
-
+    
     return assignment;
   } catch (error) {
     throw error;

@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/genai';
-import { ApiError } from '../utils/ApiError.js';
+import { ApiError } from '../utils/apiError.js';
 import { Track } from '../models/Track.js';
 import { Assignment } from '../models/Assignment.js';
 import { UserPreferences } from '../models/UserPreferences.js';

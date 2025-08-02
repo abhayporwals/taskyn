@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
-import { ApiError } from "../utils/ApiError.js";
+import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
-import { 
+import {
   registerUserService,
   loginUserService,
   logoutUserService,
@@ -10,9 +10,9 @@ import {
   changePasswordService,
   deleteAccountService,
   getCurrentUserService,
-  sendEmailVerification, 
-  verifyEmailOTP, 
-  sendPasswordReset, 
+  sendEmailVerification,
+  verifyEmailOTP,
+  sendPasswordReset,
   resetPasswordWithOTP,
   resendEmailVerification,
   resendPasswordReset
@@ -54,8 +54,8 @@ const loginUser = async (req, res) => {
 
     const result = await loginUserService(credentials);
 
-    const cookieOptions = { 
-      httpOnly: true, 
+    const cookieOptions = {
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -85,8 +85,8 @@ const logoutUser = async (req, res) => {
 
     await logoutUserService(userId);
 
-    const cookieOptions = { 
-      httpOnly: true, 
+    const cookieOptions = {
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict"
     };
@@ -128,8 +128,8 @@ const refreshAccessToken = async (req, res) => {
     const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessAndRefreshTokens(user._id);
 
-    const cookieOptions = { 
-      httpOnly: true, 
+    const cookieOptions = {
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -238,8 +238,8 @@ const deleteAccount = async (req, res) => {
 
     const result = await deleteAccountService(userId, password);
 
-    const cookieOptions = { 
-      httpOnly: true, 
+    const cookieOptions = {
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict"
     };
