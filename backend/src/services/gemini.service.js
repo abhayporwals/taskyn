@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { ApiError } from '../utils/apiError.js';
 import { Track } from '../models/Track.js';
 import { Assignment } from '../models/Assignment.js';
@@ -6,32 +6,38 @@ import { UserPreferences } from '../models/UserPreferences.js';
 
 class GeminiService {
   constructor() {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-001' });
+    const apiKey = process.env.GEMINI_API_KEY || 'hi';
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY environment variable is required");
+    }
+
+    this.genAI = new GoogleGenAI({ apiKey });
   }
 
-  /**
-   * Generate a personalized learning track based on user preferences
-   * @param {string} userId - The user ID
-   * @param {Object} options - Additional options for track generation
-   * @returns {Object} Generated track data
-   */
+  async generateWithPrompt(prompt) {
+    const response = await this.genAI.models.generateContent({
+      model: 'gemini-2.0-flash-001',
+      contents: prompt
+    });
+
+    if (!response.text) {
+      throw new Error("No text response from Gemini");
+    }
+
+    return response.text();
+  }
+
   async generateTrack(userId, options = {}) {
     try {
-      // Get user preferences
       const userPreferences = await UserPreferences.findOne({ userId });
       if (!userPreferences) {
         throw new ApiError(404, 'User preferences not found. Please complete your profile first.');
       }
 
-      // Build personalized prompt for track generation
-      const trackPrompt = this.buildTrackPrompt(userPreferences, options);
-      
-      const response = await this.model.generateContent(trackPrompt);
-      const result = await response.response;
-      const trackData = this.parseTrackResponse(result.text());
+      const prompt = this.buildTrackPrompt(userPreferences, options);
+      const responseText = await this.generateWithPrompt(prompt);
+      const trackData = this.parseTrackResponse(responseText);
 
-      // Create and save the track
       const track = new Track({
         userId,
         title: trackData.title,
@@ -41,8 +47,6 @@ class GeminiService {
       });
 
       await track.save();
-
-      // Generate assignments for this track
       await this.generateAssignmentsForTrack(track._id, userId, userPreferences, trackData);
 
       return track;
@@ -51,28 +55,14 @@ class GeminiService {
     }
   }
 
-  /**
-   * Generate assignments for a specific track
-   * @param {string} trackId - The track ID
-   * @param {string} userId - The user ID
-   * @param {Object} userPreferences - User preferences
-   * @param {Object} trackData - Track information
-   */
   async generateAssignmentsForTrack(trackId, userId, userPreferences, trackData) {
     try {
       const assignments = [];
-      
-      for (let i = 0; i < trackData.totalTasks; i++) {
-        const assignmentPrompt = this.buildAssignmentPrompt(
-          userPreferences, 
-          trackData, 
-          i + 1, 
-          trackData.totalTasks
-        );
 
-        const response = await this.model.generateContent(assignmentPrompt);
-        const result = await response.response;
-        const assignmentData = this.parseAssignmentResponse(result.text());
+      for (let i = 0; i < trackData.totalTasks; i++) {
+        const prompt = this.buildAssignmentPrompt(userPreferences, trackData, i + 1, trackData.totalTasks);
+        const responseText = await this.generateWithPrompt(prompt);
+        const assignmentData = this.parseAssignmentResponse(responseText);
 
         const assignment = new Assignment({
           userId,
@@ -96,31 +86,17 @@ class GeminiService {
     }
   }
 
-  /**
-   * Generate a single assignment
-   * @param {string} userId - The user ID
-   * @param {string} trackId - The track ID
-   * @param {Object} options - Assignment options
-   * @returns {Object} Generated assignment
-   */
   async generateAssignment(userId, trackId, options = {}) {
     try {
       const userPreferences = await UserPreferences.findOne({ userId });
       const track = await Track.findById(trackId);
 
-      if (!userPreferences) {
-        throw new ApiError(404, 'User preferences not found');
-      }
+      if (!userPreferences) throw new ApiError(404, 'User preferences not found');
+      if (!track) throw new ApiError(404, 'Track not found');
 
-      if (!track) {
-        throw new ApiError(404, 'Track not found');
-      }
-
-      const assignmentPrompt = this.buildAssignmentPrompt(userPreferences, track, null, null, options);
-      
-      const response = await this.model.generateContent(assignmentPrompt);
-      const result = await response.response;
-      const assignmentData = this.parseAssignmentResponse(result.text());
+      const prompt = this.buildAssignmentPrompt(userPreferences, track, null, null, options);
+      const responseText = await this.generateWithPrompt(prompt);
+      const assignmentData = this.parseAssignmentResponse(responseText);
 
       const assignment = new Assignment({
         userId,
@@ -141,9 +117,48 @@ class GeminiService {
     }
   }
 
-  /**
-   * Build prompt for track generation
-   */
+  async generateFeedback(assignment, submissionContent, reflection = '') {
+    try {
+      const feedbackPrompt = `
+You are an expert programming instructor providing constructive feedback. Generate a JSON response with the following structure:
+
+{
+  "score": number (0-100),
+  "feedback": "Detailed feedback on the submission",
+  "suggestions": ["suggestion1", "suggestion2", "suggestion3"],
+  "strengths": ["strength1", "strength2"],
+  "areasForImprovement": ["area1", "area2"]
+}
+
+Assignment Details:
+- Title: ${assignment.title}
+- Description: ${assignment.description}
+- Type: ${assignment.type}
+- Difficulty: ${assignment.difficulty}
+- Language: ${assignment.language}
+
+Submission:
+- Content: ${submissionContent}
+- Reflection: ${reflection}
+
+Provide constructive, encouraging feedback that helps the learner improve.
+Respond only with valid JSON, no additional text.
+      `.trim();
+
+      const responseText = await this.generateWithPrompt(feedbackPrompt);
+
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Invalid feedback response format');
+      }
+
+      return JSON.parse(jsonMatch[0]);
+    } catch (error) {
+      throw new ApiError(500, `Failed to generate feedback: ${error.message}`);
+    }
+  }
+
+  // Prompt builders and parsers remain the same
   buildTrackPrompt(userPreferences, options = {}) {
     const {
       interests = [],
@@ -188,12 +203,9 @@ Requirements:
 5. Make it challenging but achievable
 
 Respond only with valid JSON, no additional text.
-    `;
+    `.trim();
   }
 
-  /**
-   * Build prompt for assignment generation
-   */
   buildAssignmentPrompt(userPreferences, trackData, taskNumber, totalTasks, options = {}) {
     const {
       interests = [],
@@ -243,134 +255,54 @@ Requirements:
 7. Language should match user preferences when possible
 
 Respond only with valid JSON, no additional text.
-    `;
+    `.trim();
   }
 
-  /**
-   * Parse track response from Gemini
-   */
   parseTrackResponse(responseText) {
-    try {
-      // Extract JSON from response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('Invalid response format');
-      }
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Invalid response format');
 
-      const trackData = JSON.parse(jsonMatch[0]);
-      
-      // Validate required fields
-      if (!trackData.title || !trackData.categories || !trackData.totalTasks) {
-        throw new Error('Missing required fields in track data');
-      }
-
-      return {
-        title: trackData.title,
-        categories: Array.isArray(trackData.categories) ? trackData.categories : [trackData.categories],
-        totalTasks: Math.min(Math.max(parseInt(trackData.totalTasks), 5), 15), // Ensure between 5-15
-        description: trackData.description || ''
-      };
-    } catch (error) {
-      throw new Error(`Failed to parse track response: ${error.message}`);
+    const trackData = JSON.parse(jsonMatch[0]);
+    if (!trackData.title || !trackData.categories || !trackData.totalTasks) {
+      throw new Error('Missing required fields in track data');
     }
+
+    return {
+      title: trackData.title,
+      categories: Array.isArray(trackData.categories) ? trackData.categories : [trackData.categories],
+      totalTasks: Math.min(Math.max(parseInt(trackData.totalTasks), 5), 15),
+      description: trackData.description || ''
+    };
   }
 
-  /**
-   * Parse assignment response from Gemini
-   */
   parseAssignmentResponse(responseText) {
-    try {
-      // Extract JSON from response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('Invalid response format');
-      }
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Invalid response format');
 
-      const assignmentData = JSON.parse(jsonMatch[0]);
-      
-      // Validate required fields
-      if (!assignmentData.title || !assignmentData.description) {
-        throw new Error('Missing required fields in assignment data');
-      }
-
-      return {
-        title: assignmentData.title,
-        description: assignmentData.description,
-        type: this.validateAssignmentType(assignmentData.type),
-        difficulty: this.validateDifficulty(assignmentData.difficulty),
-        language: assignmentData.language || 'unknown',
-        sampleSolution: assignmentData.sampleSolution || '',
-        expectedOutput: assignmentData.expectedOutput || ''
-      };
-    } catch (error) {
-      throw new Error(`Failed to parse assignment response: ${error.message}`);
+    const assignmentData = JSON.parse(jsonMatch[0]);
+    if (!assignmentData.title || !assignmentData.description) {
+      throw new Error('Missing required fields in assignment data');
     }
+
+    return {
+      title: assignmentData.title,
+      description: assignmentData.description,
+      type: this.validateAssignmentType(assignmentData.type),
+      difficulty: this.validateDifficulty(assignmentData.difficulty),
+      language: assignmentData.language || 'unknown',
+      sampleSolution: assignmentData.sampleSolution || '',
+      expectedOutput: assignmentData.expectedOutput || ''
+    };
   }
 
-  /**
-   * Validate assignment type
-   */
   validateAssignmentType(type) {
     const validTypes = ['code', 'reading', 'project', 'mcq', 'mixed'];
     return validTypes.includes(type) ? type : 'mixed';
   }
 
-  /**
-   * Validate difficulty level
-   */
   validateDifficulty(difficulty) {
     const validDifficulties = ['easy', 'medium', 'hard'];
     return validDifficulties.includes(difficulty) ? difficulty : 'medium';
-  }
-
-  /**
-   * Generate AI feedback for a submitted assignment
-   * @param {Object} assignment - The assignment object
-   * @param {string} submissionContent - User's submission
-   * @param {string} reflection - User's reflection
-   * @returns {Object} AI feedback
-   */
-  async generateFeedback(assignment, submissionContent, reflection = '') {
-    try {
-      const feedbackPrompt = `
-You are an expert programming instructor providing constructive feedback. Generate a JSON response with the following structure:
-
-{
-  "score": number (0-100),
-  "feedback": "Detailed feedback on the submission",
-  "suggestions": ["suggestion1", "suggestion2", "suggestion3"],
-  "strengths": ["strength1", "strength2"],
-  "areasForImprovement": ["area1", "area2"]
-}
-
-Assignment Details:
-- Title: ${assignment.title}
-- Description: ${assignment.description}
-- Type: ${assignment.type}
-- Difficulty: ${assignment.difficulty}
-- Language: ${assignment.language}
-
-Submission:
-- Content: ${submissionContent}
-- Reflection: ${reflection}
-
-Provide constructive, encouraging feedback that helps the learner improve.
-Respond only with valid JSON, no additional text.
-      `;
-
-      const response = await this.model.generateContent(feedbackPrompt);
-      const result = await response.response;
-      
-      // Parse feedback response
-      const jsonMatch = result.text().match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('Invalid feedback response format');
-      }
-
-      return JSON.parse(jsonMatch[0]);
-    } catch (error) {
-      throw new ApiError(500, `Failed to generate feedback: ${error.message}`);
-    }
   }
 }
 

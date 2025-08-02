@@ -1,5 +1,5 @@
 import { ApiError } from "../utils/apiError.js";
-import { Userpreferences } from "../models/UserPreferences.js";
+import { UserPreferences } from "../models/UserPreferences.js";
 
 export const submitOrUpdatePreferencesService = async (userId, payload) => {
   try {
@@ -7,7 +7,7 @@ export const submitOrUpdatePreferencesService = async (userId, payload) => {
       throw ApiError.badRequest("availableHoursPerWeek and preferredLanguage are required");
     }
 
-    const preferences = await Userpreferences.findOneAndUpdate(
+    const preferences = await UserPreferences.findOneAndUpdate(
       { userId },
       { $set: payload },
       { upsert: true, new: true }
@@ -20,7 +20,7 @@ export const submitOrUpdatePreferencesService = async (userId, payload) => {
 
 export const getUserPreferencesService = async (userId) => {
   try {
-    const preferences = await Userpreferences.findOne({ userId });
+    const preferences = await UserPreferences.findOne({ userId });
 
     if (!preferences) {
       throw ApiError.notFound("User preferences data not found");
