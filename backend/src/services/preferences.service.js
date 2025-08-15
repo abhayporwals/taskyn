@@ -1,9 +1,9 @@
-import { ApiError } from "../utils/apiError.js";
+import { ApiError } from "../utils/ApiError.js";
 import { UserPreferences } from "../models/UserPreferences.js";
 
 export const submitOrUpdatePreferencesService = async (userId, payload) => {
   try {
-    if (!payload.availableHoursPerWeek || !payload.preferredLanguage) {
+    if (!payload.availableHoursPerWeek || !payload.preferredLanguages) {
       throw ApiError.badRequest("availableHoursPerWeek and preferredLanguage are required");
     }
 

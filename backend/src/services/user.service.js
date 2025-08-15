@@ -1,5 +1,5 @@
 import { User } from "../models/User.js";
-import { ApiError } from "../utils/apiError.js";
+import { ApiError } from "../utils/ApiError.js";
 import { sendEmailVerificationOTP, sendPasswordResetOTP } from "./email.service.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { comparePassword } from "../utils/hash.js";

@@ -1,31 +1,37 @@
-import { GoogleGenAI } from '@google/genai';
-import { ApiError } from '../utils/apiError.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ApiError } from '../utils/ApiError.js';
 import { Track } from '../models/Track.js';
 import { Assignment } from '../models/Assignment.js';
 import { UserPreferences } from '../models/UserPreferences.js';
 
 class GeminiService {
   constructor() {
-    const apiKey = process.env.GEMINI_API_KEY || 'hi';
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY environment variable is required");
     }
 
-    this.genAI = new GoogleGenAI({ apiKey });
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-001' });
   }
 
   async generateWithPrompt(prompt) {
-    const response = await this.genAI.models.generateContent({
-      model: 'gemini-2.0-flash-001',
-      contents: prompt
-    });
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      if (!text) {
+        throw new Error("No text response from Gemini");
+      }
 
-    if (!response.text) {
-      throw new Error("No text response from Gemini");
+      return text;
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      throw new Error(`Gemini API error: ${error.message}`);
     }
-
-    return response.text();
   }
+
 
   async generateTrack(userId, options = {}) {
     try {
@@ -119,31 +125,25 @@ class GeminiService {
 
   async generateFeedback(assignment, submissionContent, reflection = '') {
     try {
-      const feedbackPrompt = `
-You are an expert programming instructor providing constructive feedback. Generate a JSON response with the following structure:
+      const feedbackPrompt = `Provide constructive feedback for this programming assignment.
 
+Assignment: ${assignment.title}
+Type: ${assignment.type}
+Difficulty: ${assignment.difficulty}
+
+Submission: ${submissionContent.substring(0, 500)}
+Reflection: ${reflection.substring(0, 200)}
+
+Generate JSON with this structure (no markdown, no extra text):
 {
-  "score": number (0-100),
-  "feedback": "Detailed feedback on the submission",
-  "suggestions": ["suggestion1", "suggestion2", "suggestion3"],
+  "score": 85,
+  "feedback": "Brief, constructive feedback (max 200 characters)",
+  "suggestions": ["suggestion1", "suggestion2"],
   "strengths": ["strength1", "strength2"],
   "areasForImprovement": ["area1", "area2"]
 }
 
-Assignment Details:
-- Title: ${assignment.title}
-- Description: ${assignment.description}
-- Type: ${assignment.type}
-- Difficulty: ${assignment.difficulty}
-- Language: ${assignment.language}
-
-Submission:
-- Content: ${submissionContent}
-- Reflection: ${reflection}
-
-Provide constructive, encouraging feedback that helps the learner improve.
-Respond only with valid JSON, no additional text.
-      `.trim();
+Keep feedback concise and encouraging. Return only valid JSON.`.trim();
 
       const responseText = await this.generateWithPrompt(feedbackPrompt);
 
@@ -173,37 +173,36 @@ Respond only with valid JSON, no additional text.
       availableHoursPerWeek = 10
     } = userPreferences;
 
-    return `
-You are an expert programming instructor creating a personalized learning track. Generate a JSON response with the following structure:
+    return `You are an expert programming instructor. Create a personalized learning track based on the user profile.
 
+User Profile:
+- Interests: ${interests.join(', ') || 'General programming'}
+- Primary Goals: ${primaryGoals.join(', ') || 'Skill development'}
+- Secondary Goals: ${secondaryGoals.join(', ') || 'Career growth'}
+- Skill Levels: ${Object.keys(skillLevels).length > 0 ? JSON.stringify(skillLevels) : 'Beginner'}
+- Preferred Topics: ${preferredTopics.join(', ') || 'Web development'}
+- Preferred Languages: ${preferredLanguages.join(', ') || 'JavaScript, Python'}
+- Learning Style: ${learningStyle}
+- Assignment Type: ${preferredAssignmentType}
+- Experience: ${yearsOfExperience} years
+- Weekly Hours: ${availableHoursPerWeek}
+
+Generate a JSON response with exactly this structure (no markdown, no extra text):
 {
   "title": "Track title (max 100 characters)",
   "categories": ["category1", "category2", "category3"],
-  "totalTasks": number (between 5-15),
+  "totalTasks": 8,
   "description": "Brief track description (max 200 characters)"
 }
 
-User Profile:
-- Interests: ${interests.join(', ')}
-- Primary Goals: ${primaryGoals.join(', ')}
-- Secondary Goals: ${secondaryGoals.join(', ')}
-- Skill Levels: ${JSON.stringify(skillLevels)}
-- Preferred Topics: ${preferredTopics.join(', ')}
-- Preferred Languages: ${preferredLanguages.join(', ')}
-- Learning Style: ${learningStyle}
-- Assignment Type Preference: ${preferredAssignmentType}
-- Years of Experience: ${yearsOfExperience}
-- Available Hours per Week: ${availableHoursPerWeek}
-
 Requirements:
-1. Create a focused track that aligns with user's primary goals
-2. Consider their skill level and experience
-3. Include 5-15 tasks based on available time
-4. Categories should be relevant to their interests
-5. Make it challenging but achievable
+- Title should be specific and engaging
+- Categories should be 2-4 relevant programming areas
+- Total tasks: 5-15 based on available time
+- Description should be clear and motivating
+- Focus on practical, job-relevant skills
 
-Respond only with valid JSON, no additional text.
-    `.trim();
+Return only valid JSON.`.trim();
   }
 
   buildAssignmentPrompt(userPreferences, trackData, taskNumber, totalTasks, options = {}) {
@@ -218,44 +217,33 @@ Respond only with valid JSON, no additional text.
 
     const { type, difficulty } = options;
 
-    return `
-You are an expert programming instructor creating a personalized assignment. Generate a JSON response with the following structure:
+    return `Create a programming assignment for task ${taskNumber || 1} of ${totalTasks || 1}.
 
-{
-  "title": "Assignment title (max 100 characters)",
-  "description": "Detailed assignment description with clear instructions",
-  "type": "code|reading|project|mcq|mixed",
-  "difficulty": "easy|medium|hard",
-  "language": "programming language or 'mixed'",
-  "sampleSolution": "Sample solution or approach (if applicable)",
-  "expectedOutput": "Expected output or result description"
-}
-
-Context:
-- Track: ${trackData.title || 'Custom Track'}
-- Track Categories: ${Array.isArray(trackData.categories) ? trackData.categories.join(', ') : trackData.category?.join(', ') || 'General'}
-- Task Number: ${taskNumber || 'Custom'}
-- Total Tasks: ${totalTasks || 'N/A'}
+Track: ${trackData.title || 'Custom Track'}
+Categories: ${Array.isArray(trackData.categories) ? trackData.categories.join(', ') : trackData.category?.join(', ') || 'General'}
 
 User Profile:
-- Interests: ${interests.join(', ')}
-- Skill Levels: ${JSON.stringify(skillLevels)}
-- Preferred Languages: ${preferredLanguages.join(', ')}
-- Learning Style: ${learningStyle}
-- Assignment Type Preference: ${preferredAssignmentType}
-- Years of Experience: ${yearsOfExperience}
+- Interests: ${interests.join(', ') || 'Programming'}
+- Skill Level: ${Object.keys(skillLevels).length > 0 ? 'Mixed levels' : 'Beginner'}
+- Languages: ${preferredLanguages.join(', ') || 'JavaScript, Python'}
+- Experience: ${yearsOfExperience} years
+
+Generate JSON with this exact structure (no markdown, no extra text):
+{
+  "title": "Assignment title (max 80 characters)",
+  "description": "Clear, concise assignment description (max 300 characters)",
+  "type": "code",
+  "difficulty": "medium",
+  "language": "JavaScript",
+  "sampleSolution": "Brief solution approach (max 200 characters)",
+  "expectedOutput": "Expected result description (max 150 characters)"
+}
 
 Requirements:
-1. Assignment should be ${type || 'appropriate for the track'}
-2. Difficulty should be ${difficulty || 'progressive based on task number'}
-3. Consider user's skill level and experience
-4. Make it practical and engaging
-5. Include clear instructions and expected outcomes
-6. If it's a coding assignment, provide a sample solution approach
-7. Language should match user preferences when possible
-
-Respond only with valid JSON, no additional text.
-    `.trim();
+- Keep descriptions concise and practical
+- Focus on hands-on coding practice
+- Make it engaging and achievable
+- Return only valid JSON`.trim();
   }
 
   parseTrackResponse(responseText) {
@@ -307,3 +295,4 @@ Respond only with valid JSON, no additional text.
 }
 
 export const geminiService = new GeminiService();
+

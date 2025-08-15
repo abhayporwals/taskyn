@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import {
   registerUserService,
@@ -18,6 +17,7 @@ import {
   resendPasswordReset
 } from "../services/user.service.js";
 import { User } from "../models/User.js";
+import { ApiError } from "../utils/ApiError.js";
 
 const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
